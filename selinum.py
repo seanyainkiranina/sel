@@ -101,7 +101,7 @@ class Tester:
             print(self.step.url)
             self.driver.get(self.step.url)
         elif self.step.action == "by_name":
-            self.driver.find_by_name(self.step.element)
+            self.driver.find_elwment_by_name(self.step.element)
             self.driver.send_keys(self.step.keys)
             if len(self.step.keys_append)>0:
                 self.driver.send_keys(eval(self.step.keys_append))
