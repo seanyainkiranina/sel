@@ -78,7 +78,7 @@ class Tester:
         cursor = self.cnxn.cursor()
         print(self.step.master_id)
         print(self.step.current_step)
-        cursor.execute("select action,element,keys,keys_append from child_unit_tests where master_id=(?) and step_number=(?)",self.step.master_id,self.step.current_step)
+        cursor.execute("select action,element,keys,keys_append from child_unit_tests where id=(?) ",self.step.id)
         if cursor.rowcount == 0:
             exit(1)
         row = cursor.fetchone()
