@@ -50,16 +50,19 @@ class Tester:
             row = cursor.fetchone()
         cursor.close()
     def run(self):
+        print('Got Id')
         self.getID()
         self.actionStart()
         self.executeTest()
         self.actionStop()
+        print('etwrt finished')
         self.step.current_step = self.step.current_step + 1
         master_cursor = self.cnxn.cursor()
         master_cursor.execute("select id from child_unit_tests where master_id=(?) order by id",self.step.master_id)
         master_row=master_cursor.fetchone()
         while master_row:
             self.step.id = master_row[0]
+            print('nextstep ')
             self.nextStep()
             master_row = master_cursor.fetchone()
         master_cursor.close()
@@ -80,13 +83,16 @@ class Tester:
         print(self.step.current_step)
         cursor.execute("select action,element,keys,keys_append from child_unit_tests where id=(?) ",self.step.id)
         if cursor.rowcount == 0:
+            print('row count 0')
             exit(1)
         row = cursor.fetchone()
         self.step.action = row[0]
         self.step.element = row[1]
         self.step.keys = row[2]
         self.step.keys_append = row[3]
+        time.sleep(3)
         self.actionStart()
+        self.executeTest()
         self.step.current_step = self.step.current_step + 1
         cursor.close()
     def executeTest(self):
