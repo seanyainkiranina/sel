@@ -3,6 +3,8 @@ from selenium import webdriver
 import pyodbc
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 class Test:
     master_id =0
@@ -104,10 +106,11 @@ class Tester:
             element.send_keys(self.step.keys.strip())
             if len(self.step.keys_append)>0:
                 self.sendKeys(element)
-            elif self.step.action == "wait":
-                self.driver.wait(eval(self.step.element),self.step.keys_append)
-        elif self.step.action=="by_linktext":
+        elif self.step.action == "wait":
+            self.wait()
+        elif self.step.action=="by_linkText":
             element = self.driver.find_element_by_link_text(self.step.element)
+            print(element)
             element.click()
         elif self.step.action=="by_xpath":
             element = self.driver.find_element_by_xpath(self.step.element)
@@ -117,6 +120,13 @@ class Tester:
         if self.step.keys_append == "Key.RETURN":
             element.send_keys(Keys.ENTER)
         return
-
+    def wait(self):
+        print('wait title')
+        if self.step.element == "title":
+            print('waited for title')
+            element = WebDriverWait(self.driver, int(self.step.keys_append)).until(
+                EC.title_contains(self.step.keys)
+            )
+        return
 
 browser= Tester()
