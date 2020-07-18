@@ -2,7 +2,7 @@ import time
 from selenium import webdriver
 import pyodbc
 from selenium.webdriver.chrome.webdriver import WebDriver
-
+from selenium.webdriver.common.keys import Keys
 
 class Test:
     master_id =0
@@ -104,9 +104,14 @@ class Tester:
             element = self.driver.find_element_by_name(self.step.element)
             element.send_keys(self.step.keys)
             if len(self.step.keys_append)>0:
-                element.send_keys(eval(self.step.keys_append))
+                self.sendKeys(element)
             elif self.step.action == "wait":
                 self.driver.wait(eval(self.step.element),self.step.keys_append)
         self.actionStop()
+    def sendKeys(self,element):
+        if self.step.keys_append == "Key.RETURN":
+            element.send_keys(Keys.ENTER)
+        return
+
 
 browser= Tester()
