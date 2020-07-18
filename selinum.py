@@ -52,9 +52,7 @@ class Tester:
     def run(self):
         print('Got Id')
         self.getID()
-        self.actionStart()
         self.executeTest()
-        self.actionStop()
         print('etwrt finished')
         self.step.current_step = self.step.current_step + 1
         master_cursor = self.cnxn.cursor()
@@ -68,15 +66,17 @@ class Tester:
         master_cursor.close()
     def actionStart(self):
         cursor = self.cnxn.cursor()
-        cursor.execute("insert into detail_unit_tests(master_id,step_id) values(?,?)",self.step.master_id,self.step.current_step)
-        cursor.execute("SELECT SCOPE_IDENTITY()")
+        cursor.execute("insert into detail_unit_tests(master_id,step_id) values(?,?);",self.step.master_id,self.step.current_step)
+        self.cnxn.commit()
+        cursor.execute("SELECT SCOPE_IDENTITY();")
         row = cursor.fetchone()
+        print('inserting ')
+        print(row[0])
         self.step.id = row[0]
-        cursor.close()
     def actionStop(self):
         cursor = self.cnxn.cursor()
         cursor.execute("update detail_unit_tests set elapse=CURRENT_TIMESTAMP where id=(?)",self.step.id)
-        cursor.close()
+        self.cnxn.commit()
     def nextStep(self):
         cursor = self.cnxn.cursor()
         print(self.step.master_id)
@@ -91,7 +91,6 @@ class Tester:
         self.step.keys = row[2]
         self.step.keys_append = row[3]
         time.sleep(3)
-        self.actionStart()
         self.executeTest()
         self.step.current_step = self.step.current_step + 1
         cursor.close()
@@ -102,12 +101,18 @@ class Tester:
             self.driver.get(self.step.url)
         elif self.step.action == "by_name":
             element = self.driver.find_element_by_name(self.step.element)
-            element.send_keys(self.step.keys)
+            element.send_keys(self.step.keys.strip())
             if len(self.step.keys_append)>0:
                 self.sendKeys(element)
             elif self.step.action == "wait":
                 self.driver.wait(eval(self.step.element),self.step.keys_append)
-        self.actionStop()
+        elif self.step.action=="by_linktext":
+            element = self.driver.find_element_by_link_text(self.step.element)
+            element.click()
+        elif self.step.action=="by_xpath":
+            element = self.driver.find_element_by_xpath(self.step.element)
+            if self.step.keys_append == "Click":
+                element.click()
     def sendKeys(self,element):
         if self.step.keys_append == "Key.RETURN":
             element.send_keys(Keys.ENTER)
