@@ -86,6 +86,7 @@ class Tester:
                 exit(1)
             master_row = master_cursor.fetchone()
         master_cursor.close()
+        self.driver.quit()
     def actionStart(self):
         self.save_cursor.execute("insert into detail_unit_tests(master_id,start,step_id) values(?,CURRENT_TIMESTAMP,?); select scope_identity() as id",self.step.master_id,self.step.current_step)
         self.save_cursor.nextset()
