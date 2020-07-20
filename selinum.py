@@ -2,6 +2,7 @@ import time
 from selenium import webdriver
 import pyodbc
 from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -37,7 +38,17 @@ class Tester:
                                     'SERVER='+self.server+';MARS_Connection=Yes;DATABASE='+self.database+';'+
                                     'UID='+self.username+';PWD='+ self.password)
         cursor = self.cnxn.cursor()
-        self.driver = webdriver.Chrome('C:\\Users\\jpalmer\\Workspace\\nodesel\\chromedriver.exe')  # Optional argument, if not specified will search path.
+        option = Options()
+
+        option.add_argument("--disable-infobars")
+        option.add_argument("start-maximized")
+        option.add_argument("--disable-extensions")
+
+        # Pass the argument 1 to allow and 2 to block
+        option.add_experimental_option("prefs", {
+            "profile.default_content_setting_values.notifications": 1
+        })
+        self.driver = webdriver.Chrome(chrome_options=option, executable_path='C:\\Users\\jpalmer\\Workspace\\nodesel\\chromedriver.exe')  # Optional argument, if not specified will search path.
         self.step = Test()
         self.run()
     def getID(self):
@@ -58,7 +69,7 @@ class Tester:
         print('etwrt finished')
         self.step.current_step = self.step.current_step + 1
         master_cursor = self.cnxn.cursor()
-        master_cursor.execute("select id from child_unit_tests where master_id=(?) order by id",self.step.master_id)
+        master_cursor.execute("select id from child_unit_tests where master_id=(?) order by step_number",self.step.master_id)
         master_row=master_cursor.fetchone()
         while master_row:
             self.step.id = master_row[0]
@@ -97,6 +108,7 @@ class Tester:
         self.step.current_step = self.step.current_step + 1
         cursor.close()
     def executeTest(self):
+        time.sleep(3)
         print(self.step.action)
         if self.step.action == "get":
             print(self.step.url)
@@ -112,6 +124,18 @@ class Tester:
             element = self.driver.find_element_by_link_text(self.step.element)
             print(element)
             element.click()
+        elif self.step.action=="window":
+            windows = self.driver.window_handles
+            self.driver.switch_to.window(windows[int(self.step.element)])
+        elif self.step.action=="class":
+            classes = self.driver.find_elements_by_class_name(self.step.element.strip())
+            print('classes ')
+            print(len(classes))
+        elif self.step.action=="tags":
+            links = self.driver.find_elements_by_tag_name(self.step.element.strip())
+        elif self.step.action == "javascript":
+            windows = self.driver.window_handles
+            self.driver.execute_script(self.step.element)
         elif self.step.action=="by_xpath":
             element = self.driver.find_element_by_xpath(self.step.element)
             if self.step.keys_append == "Click":
