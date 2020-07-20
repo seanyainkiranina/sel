@@ -16,6 +16,7 @@ class Test:
     element = ""
     keys = ""
     keys_append = ""
+    log_id =0
 
     def __init__(self):
         self.master_id = 0
@@ -23,6 +24,7 @@ class Test:
         self.url = ""
         self.current_step = 1
         self.id =0
+        self.log_id =0
 
 class Tester:
     server = 'tcp:localhost'
@@ -30,18 +32,21 @@ class Tester:
     username = 'sai'
     password = 'chicago'
     cnxn = None
+    save_cursor = None
+    cursor = None
     driver: WebDriver =None
     step: Test =None
 
     def __init__(self):
         self.cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};'+
                                     'SERVER='+self.server+';MARS_Connection=Yes;DATABASE='+self.database+';'+
-                                    'UID='+self.username+';PWD='+ self.password)
+                                    'UID='+self.username+';PWD='+ self.password,autocommit = True)
         cursor = self.cnxn.cursor()
+        self.save_cursor = self.cnxn.cursor()
         option = Options()
 
         option.add_argument("--disable-infobars")
-        option.add_argument("start-maximized")
+        option.add_argument("--start-maximized")
         option.add_argument("--disable-extensions")
 
         # Pass the argument 1 to allow and 2 to block
@@ -63,10 +68,8 @@ class Tester:
             row = cursor.fetchone()
         cursor.close()
     def run(self):
-        print('Got Id')
         self.getID()
         self.executeTest()
-        print('etwrt finished')
         self.step.current_step = self.step.current_step + 1
         master_cursor = self.cnxn.cursor()
         master_cursor.execute("select id from child_unit_tests where master_id=(?) order by step_number",self.step.master_id)
@@ -74,24 +77,25 @@ class Tester:
         while master_row:
             self.step.id = master_row[0]
             print('nextstep ')
-            self.nextStep()
+            try:
+                self.nextStep()
+            except (RuntimeError, TypeError, NameError):
+                self.logErrorStop(NameError)
             master_row = master_cursor.fetchone()
         master_cursor.close()
     def actionStart(self):
-        cursor = self.cnxn.cursor()
-        cursor.execute("insert into detail_unit_tests(master_id,step_id) values(?,?);",self.step.master_id,self.step.current_step)
-        self.cnxn.commit()
-        cursor.execute("SELECT SCOPE_IDENTITY();")
-        row = cursor.fetchone()
-        print('inserting ')
-        print(row[0])
-        self.step.id = row[0]
+        self.save_cursor.execute("insert into detail_unit_tests(master_id,start,step_id) values(?,CURRENT_TIMESTAMP,?); select scope_identity() as id",self.step.master_id,self.step.current_step)
+        self.save_cursor.nextset()
+        for id in self.save_cursor:
+            self.step.log_id = id
     def actionStop(self):
-        cursor = self.cnxn.cursor()
-        cursor.execute("update detail_unit_tests set elapse=CURRENT_TIMESTAMP where id=(?)",self.step.id)
-        self.cnxn.commit()
+        print(self.step.log_id)
+        self.save_cursor.execute("update detail_unit_tests set elapse=CURRENT_TIMESTAMP,success=1 where id=(?)",self.step.log_id)
+    def logErrorStop(self,error_message):
+        self.save_cursor.execute("update detail_unit_tests set elapse=CURRENT_TIMESTAMP,success=0,response=(?) where id=(?)",error_message,self.step.log_id)
     def nextStep(self):
         cursor = self.cnxn.cursor()
+        self.actionStart()
         print(self.step.master_id)
         print(self.step.current_step)
         cursor.execute("select action,element,keys,keys_append from child_unit_tests where id=(?) ",self.step.id)
@@ -103,12 +107,11 @@ class Tester:
         self.step.element = row[1]
         self.step.keys = row[2]
         self.step.keys_append = row[3]
-        time.sleep(3)
         self.executeTest()
         self.step.current_step = self.step.current_step + 1
         cursor.close()
+        self.actionStop()
     def executeTest(self):
-        time.sleep(3)
         print(self.step.action)
         if self.step.action == "get":
             print(self.step.url)
