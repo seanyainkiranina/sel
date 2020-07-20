@@ -1,6 +1,7 @@
 import time
 from selenium import webdriver
 import pyodbc
+import sys
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
@@ -79,8 +80,10 @@ class Tester:
             print('nextstep ')
             try:
                 self.nextStep()
-            except (RuntimeError, TypeError, NameError):
-                self.logErrorStop(NameError)
+            except:
+                e = sys.exc_info()[0]
+                self.logErrorStop(e)
+                exit(1)
             master_row = master_cursor.fetchone()
         master_cursor.close()
     def actionStart(self):
@@ -143,6 +146,14 @@ class Tester:
             element = self.driver.find_element_by_xpath(self.step.element)
             if self.step.keys_append == "Click":
                 element.click()
+        elif self.step.action=="by_id":
+            element = self.driver.find_element_by_id(self.step.element)
+            element.send_keys(self.step.keys.strip())
+            if len(self.step.keys_append) > 0:
+                self.sendKeys(element)
+        elif self.step.action=="sleep":
+            time.sleep(int(self.step.element.strip()))
+            self.driver.save_screenshot( str(self.step.current_step) + ".png")
     def sendKeys(self,element):
         if self.step.keys_append == "Key.RETURN":
             element.send_keys(Keys.ENTER)
