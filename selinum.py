@@ -22,7 +22,7 @@ from databasecreds import DatabaseCreds
 from scheduletask import ScheduleTask
 from scheduler import Scheduler
 import uuid
-
+from namegroups import Namegroups
 
 def runner(test_number, throttle):
     dbc = DatabaseCreds()
@@ -34,11 +34,12 @@ def runner(test_number, throttle):
 if __name__ == "__main__":
     dbc = DatabaseCreds()
     sc = Scheduler(dbc)
-    q = sc.get_schedule()
+    ng = Namegroups(dbc)
+    ng.get_namegroups()
+    q = sc.get_schedule(ng)
     idelay = 0
     seconds = time.time()
     totalRequests = 0
-    print(q.qsize())
     qq = queue.Queue()
     procs = 1
 

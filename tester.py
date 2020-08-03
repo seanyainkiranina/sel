@@ -17,7 +17,7 @@ from secret import Secret
 from test import Test
 from databasecreds import DatabaseCreds
 import uuid
-
+from namegroups import Namegroups
 
 class Tester:
     database_creds = None
@@ -28,6 +28,7 @@ class Tester:
     step: Test = None
     master_id = 1
     my_uuid = None
+    ng = None
 
     def __init__(self, id, database_creds):
         self.cnxn = pyodbc.connect(database_creds.get_connectioN_string(), autocommit=True)
@@ -58,19 +59,20 @@ class Tester:
 
         self.run()
 
-    def get_id(self):
+    def get_id(self,ng):
+        self.ng = ng
         cursor = self.cnxn.cursor()
-        cursor.execute("SELECT top 1 id,webpage from master_unit_tests where id=(?)", self.master_id)
+        cursor.execute("SELECT top 1 id,webpage,group_id from master_unit_tests where id=(?)", self.master_id)
         row = cursor.fetchone()
         while row:
             self.step.master_id = row[0]
             self.step.url = row[1].strip()
-            print(self.step.url)
-            print('url')
+            self.step.group_id = row[2].strip()
+            self.step.user_name = self.ng.get_individual( self.step.group_id)
             row = cursor.fetchone()
         self.my_uuid = uuid.uuid4()
-        cursor.execute("insert into  master_run(start_date,master_id,run_id) values(CURRENT_TIMESTAMP,?,?)",
-                       [self.master_id,self.my_uuid])
+        cursor.execute("insert into  master_run(start_date,master_id,run_id,individual) values(CURRENT_TIMESTAMP,?,?,?)",
+                       [self.master_id,self.my_uuid,self,self.step.user_name])
         cursor.close()
 
     def run(self):

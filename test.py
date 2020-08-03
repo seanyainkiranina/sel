@@ -9,6 +9,7 @@ class Test:
     keys_append = ""
     log_id = 0
     master_uuid = ""
+    user_name=""
 
     def __init__(self):
         self.master_id = 0
