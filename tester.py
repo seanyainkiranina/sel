@@ -31,6 +31,7 @@ class Tester:
     my_uuid = None
     ng = None
 
+
     def __init__(self, id, database_creds,ng):
         self.cnxn = pyodbc.connect(database_creds.get_connectioN_string(), autocommit=True)
         self.ng = ng
