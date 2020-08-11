@@ -4,9 +4,11 @@ import pyodbc
 import random
 import sys
 import time
+from random import randrange
 
 from boto3 import session
 from selenium import webdriver
+from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.keys import Keys
@@ -31,23 +33,38 @@ class Tester:
     my_uuid = None
     ng = None
 
-
-    def __init__(self, id, database_creds,ng):
+    def __init__(self, id, database_creds, ng):
         self.cnxn = pyodbc.connect(database_creds.get_connectioN_string(), autocommit=True)
         self.ng = ng
+
+        pid = os.getpid()
 
         cursor = self.cnxn.cursor()
         self.save_cursor = self.cnxn.cursor()
         option = Options()
 
         option.add_argument("--disable-infobars")
+
+        option.add_argument("--disable-gpu")
         option.add_argument("--start-maximized")
         option.add_argument("--disable-extensions")
+        option.add_argument("--disable-translate")
+        option.add_argument("--allow-file-access-from-files")
+        option.add_argument("--enable-usermedia-screen-capturing")
+        option.add_argument("--use-fake-ui-for-media-stream")
+        option.add_argument("--use-fake-device-for-media-stream")
+        option.add_argument("--use-fake-ui-device-for-media-stream")
+        option.add_argument("--use-file-for-fake-video-capture=C:\\temp\\bunnyvideo.mjpeg")
+        option.add_argument("--use-file-for-fake-audio-capture=C:\\temp\\bunny.opus")
+        option.add_argument("--enable-tracing")
+        option.add_argument("--enable-tracing-output = c:\\temp\\log.txt")
 
         # Pass the argument 1 to allow and 2 to block
         option.add_experimental_option("prefs", {
-            "profile.default_content_setting_values.notifications": 1
+            "profile.default_content_setting_values.notifications": 2
         })
+        option.set_capability('unhandledPromptBehavior', 'accept')
+
         self.driver = webdriver.Remote(
             command_executor='http://127.0.0.1:4444/wd/hub',
             desired_capabilities={
@@ -65,11 +82,16 @@ class Tester:
     def get_id(self):
 
         cursor = self.cnxn.cursor()
-        cursor.execute("SELECT top 1 id,webpage,group_id from master_unit_tests where id=(?)", self.master_id)
+        cursor.execute("SELECT top 1 id,webpage,group_id,alt_webpage from master_unit_tests where id=(?)",
+                       self.master_id)
         row = cursor.fetchone()
         while row:
             self.step.master_id = row[0]
             self.step.url = row[1].strip()
+            if row[3] is not None and len(row[3]) > 0 and len(row[3].strip()) > 0:
+                coin = randrange(101)
+                if coin > 50:
+                    self.step.url = row[3].strip()
             self.step.group_id = row[2]
             if self.step.group_id != 0:
                 self.step.user_name = self.ng.get_individual(self.step.group_id)
@@ -78,8 +100,8 @@ class Tester:
             row = cursor.fetchone()
         self.my_uuid = uuid.uuid4()
         cursor.execute(
-            "insert into  master_run(start_date,master_id,run_id,group_id,individual) values(CURRENT_TIMESTAMP,?,?,?,?)",
-            [self.master_id, self.my_uuid, self.step.group_id, self.step.user_name])
+            "insert into  master_run(start_date,master_id,run_id,group_id,individual,starting_url) values(CURRENT_TIMESTAMP,?,?,?,?,?)",
+            [self.master_id, self.my_uuid, self.step.group_id, self.step.user_name, self.step.url])
         cursor.close()
 
     def run(self):
@@ -88,23 +110,25 @@ class Tester:
         self.execute_test()
         self.step.current_step = self.step.current_step + 1
         master_cursor = self.cnxn.cursor()
-        master_cursor.execute("select id from child_unit_tests where master_id=(?) order by step_number",
-                              self.step.master_id)
+        master_cursor.execute(
+            "select id,route from child_unit_tests where master_id=(?) and active_task=1 order by step_number",
+            self.step.master_id)
         master_row = master_cursor.fetchone()
         while master_row:
             self.step.id = master_row[0]
-            print('nextstep ')
-            try:
-                self.next_step()
-            except:
-                print(sys.exc_info())
-                e = sys.exc_info()[0]
-                self.log_error_stop(e)
+            if self.step.route == master_row[1].strip():
+                print('nextstep ')
                 try:
-                    self.driver.quit()
+                    self.next_step()
                 except:
                     print(sys.exc_info())
-                exit(1)
+                    e = sys.exc_info()[0]
+                    self.log_error_stop(e)
+                    try:
+                        self.driver.quit()
+                    except:
+                        print(sys.exc_info())
+                    exit(1)
             master_row = master_cursor.fetchone()
         master_cursor.close()
         self.driver.quit()
@@ -149,7 +173,9 @@ class Tester:
         print(self.step.current_step)
         print(self.step.id)
         print("self.step.id")
-        cursor.execute("select action,element,keys,keys_append from child_unit_tests where id=(?) ", self.step.id)
+        cursor.execute(
+            "select action,element,keys,keys_append,route,alt_route,alt_route_2 from child_unit_tests where id=(?) ",
+            self.step.id)
         if cursor.rowcount == 0:
             print('row count 0')
             exit(1)
@@ -158,6 +184,9 @@ class Tester:
         self.step.element = row[1]
         self.step.keys = row[2]
         self.step.keys_append = row[3]
+        self.step.route = row[4].trim()
+        self.step.alt_route = row[5].trim()
+        self.step.alt_route_2 = row[6].trim()
         self.execute_test()
         self.step.current_step = self.step.current_step + 1
         cursor.close()
@@ -169,6 +198,16 @@ class Tester:
         check_for_custom_field = self.ng.get_value(self.step.group_id, self.step.user_name, self.step.element)
         if check_for_custom_field is not None:
             self.step.keys = check_for_custom_field
+        if self.step.action == "random_class":
+            classes = self.driver.find_elements_by_class_name(self.step.element.strip())
+            coin = randrange(0, len(classes))
+            classes[coin].click()
+        if self.step.action == "random_route":
+            coin = randrange(101)
+            if coin > 50:
+                self.step.route = self.step.alt_route
+            else:
+                self.step.route = self.step.alt_route_2
         if self.step.action == "get":
             print(self.step.url)
             self.driver.get(self.step.url)
@@ -177,6 +216,8 @@ class Tester:
             element.send_keys(self.step.keys.strip())
             if len(self.step.keys_append) > 0:
                 self.send_keys(element)
+        elif self.step.action == "newtab":
+            self.driver.find_element_by_tag_name('body').send_keys(Keys.CONTROL + 't')
         elif self.step.action == "wait":
             self.wait()
         elif self.step.action == "gett":
@@ -197,10 +238,33 @@ class Tester:
         elif self.step.action == "javascript":
             windows = self.driver.window_handles
             self.driver.execute_script(self.step.element)
-        elif self.step.action == "by_xpath":
-            element = self.driver.find_element_by_xpath(self.step.element)
+        elif self.step.action == "by_link_texts":
+            elements = self.driver.find_elements_by_link_text(self.step.element)
+            for element in elements:
+                print(element)
+        elif self.step.action == "by_class_names":
+            elements = self.driver.find_elements_by_class_name(self.step.element)
+            for element in elements:
+                print(element)
+        elif self.step.action == "by_class_name":
+            element = self.driver.find_element_by_class_name(self.step.element)
+            if self.step.keys_append == "HClick":
+                hover = ActionChains(self.driver).move_to_element(element).click().perform()
             if self.step.keys_append == "Click":
                 element.click()
+        elif self.step.action == "by_xpath":
+            element = self.driver.find_element_by_xpath(self.step.element)
+
+            if self.step.keys_append == "HClick":
+                hover = ActionChains(self.driver).move_to_element(element)
+                hover.perform()
+                element.click()
+
+            if self.step.keys_append == "Click":
+                element.click()
+        elif self.step.action == "click_by_id":
+            element = self.driver.find_element_by_id(self.step.element)
+            element.click()
         elif self.step.action == "by_id":
             element = self.driver.find_element_by_id(self.step.element)
             element.send_keys(self.step.keys.strip())
@@ -218,7 +282,7 @@ class Tester:
         return
 
     def save_image(self):
-        file_name = str(self.step.current_step) + str(random.randrange(1000)) + ".png"
+        file_name = str(self.step.current_step) + str(os.getpid()) + str(random.randrange(1000)) + ".png"
         self.driver.save_screenshot(file_name)
         s = Secret()
         client = self.session.client('s3',

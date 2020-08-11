@@ -23,9 +23,11 @@ from scheduletask import ScheduleTask
 from scheduler import Scheduler
 import uuid
 from namegroups import Namegroups
+import datetime
 
 
-
+def addSecs(tm, mins):
+    return tm + datetime.timedelta(seconds=(mins * 60))
 
 
 def runner(test_number, throttle):
@@ -33,12 +35,13 @@ def runner(test_number, throttle):
     ng = Namegroups(dbc)
     ng.get_namegroups()
 
-   # if throttle > 0:
-   #    time.sleep(throttle)
+    # if throttle > 0:
+    #    time.sleep(throttle)
     browser = Tester(test_number, dbc, ng)
 
 
 if __name__ == "__main__":
+
     dbc = DatabaseCreds()
     sc = Scheduler(dbc)
     q = sc.get_schedule()
@@ -46,25 +49,24 @@ if __name__ == "__main__":
     seconds = time.time()
     totalRequests = 0
     qq = queue.Queue()
-    procs = 1
+    procs = 3
 
     while q.qsize() > 0:
         stRunner = q.get()
         qq.put(stRunner)
         if isinstance(stRunner.max_simul, int) and stRunner.max_simul > 0 and stRunner.max_simul > procs:
             procs = stRunner.max_simul
+        if stRunner.time_limit > 0 and datetime.datetime.now() > addSecs(stRunner.start_time, stRunner.time_limit):
+            garbage = qq.get()
 
     while qq.qsize() > 0:
-        procs = 30
+        procs = 1
         cseconds = time.time()
         stRunner = qq.get()
         if isinstance(stRunner.delay_time, int) and (cseconds - seconds) < stRunner.delay_time:
             print('delay_time')
-        # q.put(stRunner)
-        #    continue
         if isinstance(stRunner.exec_limit, int) and (cseconds - seconds) > stRunner.exec_limit:
             print('exec_limit')
-        #    continue
         totalRequests = totalRequests + procs
         if isinstance(stRunner.requests, int) and stRunner.requests > 0:
             if totalRequests > stRunner.requests:
@@ -72,7 +74,6 @@ if __name__ == "__main__":
                 procs = 0
                 continue
         jobs = []
-        print('procs 2 ')
         print(procs)
         for i in range(0, procs):
             out_list = list()

@@ -8,5 +8,7 @@ class ScheduleTask:
     increment = 0
     requests = 0
     browser = ""
-    group_id =0
+    group_id = 0
+    time_limit = 0
     user = ""
+    start_time = 0

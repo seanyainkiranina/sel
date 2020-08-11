@@ -2,6 +2,7 @@ import pyodbc
 from databasecreds import DatabaseCreds
 from scheduletask import ScheduleTask
 import queue
+import datetime
 from namegroups import Namegroups
 
 
@@ -20,7 +21,7 @@ class Scheduler:
         cursor = self.cnxn.cursor()
         cursor.execute(
             "select master_batch.delay_time,master_batch.test_number,master_batch.throttle,master_batch.max_simul,master_batch.batch_number,"
-            "master_batch.exec_limit,master_batch.increment,master_unit_tests.requests,master_unit_tests.browser,master_unit_tests.group_id "
+            "master_batch.exec_limit,master_batch.increment,master_unit_tests.requests,master_unit_tests.browser,master_unit_tests.group_id,master_batch.time_limit "
             "from master_batch INNER JOIN master_unit_tests on master_unit_tests.id=master_batch.test_number where master_batch.done=0 and (master_batch.start_date is NULL or master_batch.start_date>CURRENT_TIMESTAMP or master_batch.start_date='1900-01-01 00:00:00') "
             "and (master_batch.end_date is NULL or master_batch.end_date<CURRENT_TIMESTAMP or master_batch.end_date='1900-01-01 00:00:00') ORDER BY RAND()")
         row = cursor.fetchone()
@@ -36,7 +37,9 @@ class Scheduler:
             st.requests = row[7]
             st.browser = row[8]
             st.group_id = row[9]
+            st.time_limit = row[10]
             st.user=""
+            st.start_time = datetime.datetime.now()
             self.q.put(st)
             row = cursor.fetchone()
             print(st.batch_number)
