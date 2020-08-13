@@ -46,6 +46,7 @@ class Namegroups:
                        "mock_data_detail.sub_group from  mock_data_detail INNER JOIN mock_data_names ON "
                        "mock_data_names.id=mock_data_detail.name_id where mock_data_detail.active=1")
         row = cursor.fetchone()
+        self.groups[""] = ""
         while row:
             group_key = str(row[3])
             one_key = str(row[5])
@@ -95,7 +96,7 @@ class Namegroups:
         if individual_name == "":
             return None
         data = self.groups[str(group_id)]
-        default_data = data[""]
+        default_data = data
         if value_name in default_data.keys():
             return default_data[value_name]
         if value_name in data[individual_name].keys():

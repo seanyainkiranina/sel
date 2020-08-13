@@ -9,7 +9,7 @@ class Test:
     keys_append = ""
     log_id = 0
     master_uuid = ""
-    user_name =""
+    user_name = ""
     route = ""
     alt_route = ""
     alt_route_2 = ""

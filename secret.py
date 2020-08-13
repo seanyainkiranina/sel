@@ -1,4 +1,4 @@
 
 class Secret:
-    ACCESS_ID = "ACCESS_ID"
-    SECRET_KEY = "PASSWORD"
+    ACCESS_ID = "Access_ID"
+    SECRET_KEY = "secret_key"
