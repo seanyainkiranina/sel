@@ -68,8 +68,10 @@ class Tester:
         })
         option.set_capability('unhandledPromptBehavior', 'accept')
 
+        secret = Secret()
+
         self.driver = webdriver.Remote(
-            command_executor='http://64.227.83.96:4444/wd/hub',
+            command_executor=secret.URL,
             desired_capabilities={
                 "browserName": "chrome",
             }, options=option)
@@ -295,13 +297,13 @@ class Tester:
         s = Secret()
         client = self.session.client('s3',
                                      region_name='sfo2',
-                                     endpoint_url='https://sfo2.digitaloceanspaces.com',
+                                     endpoint_url=s.endpoint_url,
                                      aws_access_key_id=s.ACCESS_ID,
                                      aws_secret_access_key=s.SECRET_KEY)
 
-        client.upload_file(file_name, 'eshow-test-space', 'screenshots/' + file_name,
+        client.upload_file(file_name, s.SPACE, 'screenshots/' + file_name,
                            ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/png'})
-        base_image = "https://eshow-test-space.sfo2.cdn.digitaloceanspaces.com/screenshots/" + file_name
+        base_image = s.OURL + file_name
         self.save_cursor.execute("update detail_unit_tests set screenshot=(?) where id=(?)", base_image,
                                  int(self.step.log_id))
         os.unlink(file_name)
