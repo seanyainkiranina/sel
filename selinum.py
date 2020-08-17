@@ -18,11 +18,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from secret import Secret
 from test import Test
 from tester import Tester
+from ftester import Ftester
 from databasecreds import DatabaseCreds
 from scheduletask import ScheduleTask
 from scheduler import Scheduler
 import uuid
 from namegroups import Namegroups
+from random import randrange
 import datetime
 
 
@@ -34,10 +36,15 @@ def runner(test_number, throttle):
     dbc = DatabaseCreds()
     ng = Namegroups(dbc)
     ng.get_namegroups()
+    xnumber = randrange(0, 101, 2)
+    if xnumber < 50:
+        browser = Ftester(test_number, dbc, ng)
+    else:
+        browser = Tester(test_number, dbc, ng)
 
     # if throttle > 0:
     #    time.sleep(throttle)
-    browser = Tester(test_number, dbc, ng)
+
 
 
 if __name__ == "__main__":
@@ -60,7 +67,7 @@ if __name__ == "__main__":
             garbage = qq.get()
 
     while qq.qsize() > 0:
-        procs = 1
+        procs = 100
         cseconds = time.time()
         stRunner = qq.get()
         if isinstance(stRunner.delay_time, int) and (cseconds - seconds) < stRunner.delay_time:
@@ -75,8 +82,13 @@ if __name__ == "__main__":
                 continue
         jobs = []
         print(procs)
+        cnxn=pyodbc.connect(dbc.get_connectioN_string(), autocommit=True)
         for i in range(0, procs):
             out_list = list()
+
+            ng = Namegroups(dbc)
+            ng.get_namegroups()
+
             process = multiprocessing.Process(target=runner,
                                               args=(stRunner.batch_number, stRunner.throttle))
             jobs.append(process)

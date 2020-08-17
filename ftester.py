@@ -9,8 +9,8 @@ from random import randrange
 from boto3 import session
 from selenium import webdriver
 from selenium.webdriver import ActionChains
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.webdriver import WebDriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -23,10 +23,9 @@ from databasecreds import DatabaseCreds
 import uuid
 
 
-class Tester:
+class Ftester:
     database_creds = None
     cnxn = None
-    xcursor = None
     save_cursor = None
     cursor = None
     driver: WebDriver = None
@@ -49,14 +48,18 @@ class Tester:
 
         option.add_argument("--disable-gpu")
         option.add_argument("--start-maximized")
-     #   option.add_argument("--headless")
-     #   option.add_argument("--window-size=1024,768")
+        option.add_argument("--headless")
+        option.add_argument("--window-size=1024,768")
         option.add_argument("--disable-extensions")
         option.add_argument("--disable-translate")
         option.add_argument("--allow-file-access-from-files")
-        option.add_argument("--disable-dev-shm-usage")
-        option.page_load_strategy = 'eager'
 
+        option.add_argument("--proxy-server='direct://'")
+        option.add_argument("--proxy-bypass-list=*")
+        option.add_argument("--start-maximized")
+        option.add_argument('--disable-dev-shm-usage')
+        option.add_argument('--no-sandbox')
+        option.add_argument('--ignore-certificate-errors')
 
         # option.add_argument("--enable-usermedia-screen-capturing")
         # option.add_argument("--use-fake-ui-for-media-stream")
@@ -72,13 +75,24 @@ class Tester:
        #     "profile.default_content_setting_values.notifications": 2
       #  })
         option.set_capability('unhandledPromptBehavior', 'accept')
+        option.log.level = "trace"
 
         secret = Secret()
 
+        fp = webdriver.FirefoxProfile()
+        fp.set_preference("devtools.debugger.remote-enabled", True)
+        fp.set_preference("devtools.debugger.prompt-connection", False)
+        fp.set_preference("devtools.debugger.remote-enabled", True)
+
+        fp.set_preference("marionette.log.level", "Trace")
+
+
         self.driver = webdriver.Remote(
+            browser_profile=fp,
             command_executor=secret.URL,
             desired_capabilities={
-                "browserName": "chrome",
+                "browserName": "firefox",
+                "marionette": "true"
             }, options=option)
 
         self.step = Test()
@@ -163,10 +177,10 @@ class Tester:
         self.save_cursor.execute(
             "update detail_unit_tests set elapse=CURRENT_TIMESTAMP,success=0,response='Error' where id=(?)",
             self.step.log_id)
+        self.save_image()
         self.save_cursor.execute(
             "update master_run set end_date=CURRENT_TIMESTAMP where run_id=?",
             [self.my_uuid])
-        self.save_image()
 
     def encode(self, file_name):
         try:
@@ -297,7 +311,7 @@ class Tester:
         return
 
     def save_image(self):
-        file_name = str(self.step.current_step) + str(os.getpid()) + str(random.randrange(6000)) + ".png"
+        file_name = str(self.step.current_step) + str(os.getpid()) + str(random.randrange(1000)) + ".png"
         self.driver.save_screenshot(file_name)
         s = Secret()
         client = self.session.client('s3',
@@ -309,11 +323,8 @@ class Tester:
         client.upload_file(file_name, s.SPACE, 'screenshots/' + file_name,
                            ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/png'})
         base_image = s.OURL + file_name
-
-        self.xcursor= self.cnxn.cursor()
-        self.xcursor.execute("update detail_unit_tests set screenshot=(?) where id=(?)", base_image,
+        self.save_cursor.execute("update detail_unit_tests set screenshot=(?) where id=(?)", base_image,
                                  int(self.step.log_id))
-
         os.unlink(file_name)
 
     def save_image64(self):
